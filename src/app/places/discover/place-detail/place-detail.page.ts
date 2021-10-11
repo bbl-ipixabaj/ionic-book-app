@@ -1,6 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ActionSheetController, ModalController, NavController } from '@ionic/angular';
+import { ActionSheetController, LoadingController, ModalController, NavController } from '@ionic/angular';
+import { Subscription } from 'rxjs';
+import { AuthService } from 'src/app/auth/auth.service';
+import { BookingService } from 'src/app/bookings/booking.service';
 import { CreateBookingsComponent } from 'src/app/bookings/create-bookings/create-bookings.component';
 import { Place } from '../../place.model';
 import { PlacesService } from '../../places.service';
@@ -10,8 +13,10 @@ import { PlacesService } from '../../places.service';
   templateUrl: './place-detail.page.html',
   styleUrls: ['./place-detail.page.scss'],
 })
-export class PlaceDetailPage implements OnInit {
+export class PlaceDetailPage implements OnInit, OnDestroy {
   place: Place;
+  public isBookable = false;
+  private placeSubs: Subscription;
   // TODO: Add id extraction after navigating to page. Do for edit page as well 
   constructor(
     private route: ActivatedRoute,
@@ -20,6 +25,9 @@ export class PlaceDetailPage implements OnInit {
     private placeService: PlacesService,
     private modalCtrl: ModalController,
     private actionSheet: ActionSheetController,
+    private bookingService: BookingService,
+    private loadingCtrl: LoadingController,
+    private authService: AuthService
     ) { }
 
   ngOnInit() {
@@ -28,7 +36,12 @@ export class PlaceDetailPage implements OnInit {
         this.navCtrl.navigateBack('/places/tabs/discover');
         return;
       }
-      this.place = this.placeService.getPlaceById(paramMap.get('placeId'));
+      this.placeSubs = this.placeService
+        .getPlaceById(paramMap.get('placeId'))
+        .subscribe(place => {
+          this.place = place;
+          this.isBookable = place.userId !== this.authService.UserId;
+        });
     });
   }
 
@@ -77,9 +90,31 @@ export class PlaceDetailPage implements OnInit {
     .then( result => {
       console.log(result.data, result.role);
       if(result.role === 'confirm'){
-        alert('booked');
+        this.loadingCtrl.create({message: 'Booking Place...'})
+        .then(loadingElement => {
+          loadingElement.present();
+            const data = result.data.bookingData;
+
+            this.bookingService.addBooking(
+            this.place.id,
+            this.place.title,
+            this.place.imageUrl,
+            data.firstName,
+            data.lastName,
+            data.guestNumber,
+            data.startDate,
+            data.endDate
+          ).subscribe(() => {
+            loadingElement.dismiss();
+          })
+        })
       }
     })
   }
 
+  ngOnDestroy() {
+    if(this.placeSubs) {
+      this.placeSubs.unsubscribe();
+    }
+  }
 }
