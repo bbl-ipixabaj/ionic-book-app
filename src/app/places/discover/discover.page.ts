@@ -15,7 +15,7 @@ import { SegmentChangeEventDetail } from '@ionic/core';
 export class DiscoverPage implements OnInit, OnDestroy {
   loadedPlaces: Place[];
   //listedLoadedPlaces: Place[];
-  private filter = 'all';
+  public isLoading = false;
   listedLoadedPlaces: Place[];
   relevantPlaces: Place[];
   private placesSubs: Subscription
@@ -27,6 +27,14 @@ export class DiscoverPage implements OnInit, OnDestroy {
       this.loadedPlaces = places;
       this.relevantPlaces = this.loadedPlaces;
       this.listedLoadedPlaces = this.relevantPlaces.slice(1);
+    });
+  }
+
+  ionViewWillEnter() {
+    this.isLoading = true;
+    this.placesService.fetchPlaces()
+    .subscribe(() => {
+      this.isLoading = false;
     });
   }
 

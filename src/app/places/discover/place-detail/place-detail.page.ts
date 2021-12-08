@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ActionSheetController, LoadingController, ModalController, NavController } from '@ionic/angular';
+import { ActionSheetController, AlertController, LoadingController, ModalController, NavController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/auth/auth.service';
 import { BookingService } from 'src/app/bookings/booking.service';
@@ -17,6 +17,7 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
   place: Place;
   public isBookable = false;
   private placeSubs: Subscription;
+  public isLoading: boolean = false;
   // TODO: Add id extraction after navigating to page. Do for edit page as well 
   constructor(
     private route: ActivatedRoute,
@@ -27,7 +28,8 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
     private actionSheet: ActionSheetController,
     private bookingService: BookingService,
     private loadingCtrl: LoadingController,
-    private authService: AuthService
+    private authService: AuthService,
+    private alertCtrl: AlertController,
     ) { }
 
   ngOnInit() {
@@ -36,11 +38,27 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
         this.navCtrl.navigateBack('/places/tabs/discover');
         return;
       }
+      this.isLoading = true;
       this.placeSubs = this.placeService
         .getPlaceById(paramMap.get('placeId'))
         .subscribe(place => {
           this.place = place;
           this.isBookable = place.userId !== this.authService.UserId;
+          this.isLoading = false;
+        },
+        err => {
+          this.alertCtrl.create({
+            header: 'An error occured',
+            message: 'The application wan unable to retrieve a page. Please try again later',
+            buttons: [{
+              text: 'Okay',
+              handler: () => {
+                this.router.navigate(['/places/tabs/discover'])
+              }
+            }]
+          }).then(alertEl => {
+            alertEl.present();
+          })
         });
     });
   }
@@ -96,17 +114,18 @@ export class PlaceDetailPage implements OnInit, OnDestroy {
             const data = result.data.bookingData;
 
             this.bookingService.addBooking(
-            this.place.id,
-            this.place.title,
-            this.place.imageUrl,
-            data.firstName,
-            data.lastName,
-            data.guestNumber,
-            data.startDate,
-            data.endDate
-          ).subscribe(() => {
-            loadingElement.dismiss();
-          })
+              this.place.id,
+              this.place.title,
+              this.place.imageUrl,
+              data.firstName,
+              data.lastName,
+              data.guestNumber,
+              data.startDate,
+              data.endDate
+            ).subscribe(() => {
+              console.log('subscribed to add booking');
+              loadingElement.dismiss();
+            })
         })
       }
     })
